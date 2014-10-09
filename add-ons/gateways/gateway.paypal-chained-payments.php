@@ -320,7 +320,6 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 
 		// Create PayPal object.
 		$PayPalConfig = array(
-			'DeveloperAccountEmail' => get_option('em_'. $this->gateway . "_email" ),
 			//'DeviceID' => $device_id,
 			'IPAddress' => $_SERVER['REMOTE_ADDR'],
 			'APISubject' => '', // If making calls on behalf a third party, their PayPal email address or account ID goes here.
@@ -331,17 +330,20 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 
 		// Differing values for Sandbox or Live
 		if( get_option('em_'. $this->gateway . "_status" ) == 'test') {
+			$PayPalConfig['DeveloperAccountEmail'] = get_option('em_'. $this->gateway . "_dev_email" );
 			$PayPalConfig['Sandbox']       = true;
 			$PayPalConfig['ApplicationID'] = 'APP-80W284485P519543T';
 			$PayPalConfig['APIUsername']   = get_option('em_'. $this->gateway . "_api_sb_username");
 			$PayPalConfig['APIPassword']   = get_option('em_'. $this->gateway . "_api_sb_password");
 			$PayPalConfig['APISignature']  = get_option('em_'. $this->gateway . "_api_sb_signature");
+			$pp_account_email = get_option('em_'. $this->gateway . "_sb_email");
 		}else{
 			$PayPalConfig['Sandbox']       = false;
 			$PayPalConfig['ApplicationID'] = get_option('em_'. $this->gateway . "_app_id");
 			$PayPalConfig['APIUsername']   = get_option('em_'. $this->gateway . "_api_username");
 			$PayPalConfig['APIPassword']   = get_option('em_'. $this->gateway . "_api_password");
 			$PayPalConfig['APISignature']  = get_option('em_'. $this->gateway . "_api_signature");
+			$pp_account_email = get_option('em_'. $this->gateway . "_email");
 		}
 
 		$PayPal = new angelleye\PayPal\Adaptive($PayPalConfig);
@@ -369,7 +371,7 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 		$Receivers = array();
 		$Receiver = array(
 			'Amount' => $EM_Booking->get_price(false, false, true),
-			'Email' => 'usb_1329725429_biz@angelleye.com', 												// Receiver's email address. 127 char max.
+			'Email' => $pp_account_email,
 			'InvoiceID' => '', 											// The invoice number for the payment.  127 char max.
 			'PaymentType' => '', 										// Transaction type.  Values are:  GOODS, SERVICE, PERSONAL, CASHADVANCE, DIGITALGOODS
 			'PaymentSubType' => '', 									// The transaction subtype for the payment.
@@ -399,7 +401,7 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 			'ActionType'   => 'PAY_PRIMARY', // Required.  Whether the request pays the receiver or whether the request is set up to create a payment request, but not fulfill the payment until the ExecutePayment is called.  Values are:  PAY, CREATE, PAY_PRIMARY
 			'CancelURL'    => '<![CDATA['.get_option('em_'. $this->gateway . "_cancel_return" ).']]>',
 			'CurrencyCode' => get_option('dbem_bookings_currency', 'USD'),
-			'FeesPayer'    => 'PRIMARYRECEIVER', // The payer of the fees.  Values are:  SENDER, PRIMARYRECEIVER, EACHRECEIVER, SECONDARYONLY
+			'FeesPayer'    => get_option('em_'. $this->gateway . "_fees_payer" ),
 			'IPNNotificationURL' => '<![CDATA['.$this->get_payment_return_url().']]>',
 			//'Memo' => '', // A note associated with the payment (text, not HTML).  1000 char max
 			//'Pin' => '', // The sener's personal id number, which was specified when the sender signed up for the preapproval
@@ -686,9 +688,27 @@ Events Manager
 		</table>
 
 		<h3><?php echo sprintf(__('%s Options','em-pro'),'PayPal'); ?></h3>
-		<p><strong><?php _e('Important:','em-pro'); ?></strong> <?php echo __('In order to connect PayPal with your site, you need to enable IPN on your account.'); echo " ". sprintf(__('Your return url is %s','em-pro'),'<code>'.$this->get_payment_return_url().'</code>'); ?></p>
-		<p><?php echo sprintf(__('Please visit the <a href="%s">documentation</a> for further instructions.','em-pro'), 'http://wp-events-plugin.com/documentation/'); ?></p>
+		<p><strong><?php _e('Important:','em-pro'); ?></strong>
+			<?php echo __('In order to connect PayPal with your site, you need to enable IPN on your account.'); ?><br />
+			<?php echo " ". sprintf(__('Your return url is %s','em-pro'),'<code>'.$this->get_payment_return_url().'</code>'); ?>
+		</p>
+
 		<table class="form-table">
+		<tbody>
+			<tr valign="top">
+				<th scope="row"><?php _e('PayPal Mode', 'em-pro') ?></th>
+				<td>
+					<select name="paypal_chained_status">
+						<option value="live" <?php if (get_option('em_'. $this->gateway . "_status" ) == 'live') echo 'selected="selected"'; ?>><?php _e('Live Site', 'em-pro') ?></option>
+						<option value="test" <?php if (get_option('em_'. $this->gateway . "_status" ) == 'test') echo 'selected="selected"'; ?>><?php _e('Test Mode (Sandbox)', 'em-pro') ?></option>
+					</select>
+					<br />
+				</td>
+			</tr>
+		</tbody>
+	</table>
+	<h3><?php _e('Live Settings','em-pro'); ?></h3>
+	<table class="form-table">
 		<tbody>
 			<tr valign="top">
 				<th scope="row"><?php _e('PayPal Email', 'em-pro') ?></th>
@@ -697,10 +717,76 @@ Events Manager
 				</td>
 			</tr>
 			<tr valign="top">
+				<th scope="row"><?php _e('PayPal Adaptive Payments Application ID', 'em-pro') ?></th>
+					<td><input type="text" name="paypal_chained_app_id" value="<?php esc_attr_e( get_option('em_'. $this->gateway . "_app_id" )); ?>" />
+					<br />
+				</td>
+			</tr>
+			<tr valign="top">
+				<th scope="row"><?php _e('PayPal API Username', 'em-pro') ?></th>
+					<td><input type="text" name="paypal_chained_api_username" value="<?php esc_attr_e( get_option('em_'. $this->gateway . "_api_username" )); ?>" />
+					<br />
+				</td>
+			</tr>
+			<tr valign="top">
+				<th scope="row"><?php _e('PayPal API Password', 'em-pro') ?></th>
+					<td><input type="password" name="paypal_chained_api_password" value="<?php esc_attr_e( get_option('em_'. $this->gateway . "_api_password" )); ?>" />
+					<br />
+				</td>
+			</tr>
+			<tr valign="top">
+				<th scope="row"><?php _e('PayPal API Signature', 'em-pro') ?></th>
+					<td><input type="text" name="paypal_chained_api_signature" value="<?php esc_attr_e( get_option('em_'. $this->gateway . "_api_signature" )); ?>" />
+					<br />
+				</td>
+			</tr>
+		</tbody>
+	</table>
+	<h3><?php _e('Sandbox Settings','em-pro'); ?></h3>
+	<table class="form-table">
+		<tbody>
+			<tr valign="top">
+				<th scope="row"><?php _e('PayPal Developer Email', 'em-pro') ?></th>
+					<td><input type="email" name="paypal_chained_dev_email" value="<?php esc_attr_e( get_option('em_'. $this->gateway . "_dev_email" )); ?>" />
+					<br />
+				</td>
+			</tr>
+			<tr valign="top">
+				<th scope="row"><?php _e('PayPal Sandbox Account Email', 'em-pro') ?></th>
+					<td><input type="email" name="paypal_chained_sb_email" value="<?php esc_attr_e( get_option('em_'. $this->gateway . "_sb_email" )); ?>" />
+					<br />
+				</td>
+			</tr>
+			<tr valign="top">
+				<th scope="row"><?php _e('PayPal Sandbox API Username', 'em-pro') ?></th>
+					<td><input type="text" name="paypal_chained_api_sb_username" value="<?php esc_attr_e( get_option('em_'. $this->gateway . "_api_sb_username" )); ?>" />
+					<br />
+				</td>
+			</tr>
+			<tr valign="top">
+				<th scope="row"><?php _e('PayPal Sandbox API Password', 'em-pro') ?></th>
+					<td><input type="password" name="paypal_chained_api_sb_password" value="<?php esc_attr_e( get_option('em_'. $this->gateway . "_api_sb_password" )); ?>" />
+					<br />
+				</td>
+			</tr>
+			<tr valign="top">
+				<th scope="row"><?php _e('PayPal Sandbox API Signature', 'em-pro') ?></th>
+					<td><input type="text" name="paypal_chained_api_sb_signature" value="<?php esc_attr_e( get_option('em_'. $this->gateway . "_api_sb_signature" )); ?>" />
+					<br />
+				</td>
+			</tr>
+		</tbody>
+		</table>
+
+	<h3><?php _e('Common Settings','em-pro'); ?></h3>
+	<table class="form-table">
+		<tbody>
+
+			<tr valign="top">
 				<th scope="row"><?php _e('Paypal Currency', 'em-pro') ?></th>
 				<td><?php echo esc_html(get_option('dbem_bookings_currency','USD')); ?><br /><i><?php echo sprintf(__('Set your currency in the <a href="%s">settings</a> page.','em-pro'),EM_ADMIN_URL.'&amp;page=events-manager-options#bookings'); ?></i></td>
 			</tr>
-
+<?php /*
 			<tr valign="top">
 				<th scope="row"><?php _e('PayPal Language', 'em-pro') ?></th>
 				<td>
@@ -723,73 +809,6 @@ Events Manager
 				</td>
 			</tr>
 			<tr valign="top">
-				<th scope="row"><?php _e('PayPal Adaptive Payments Application ID', 'em-pro') ?></th>
-					<td><input type="text" name="paypal_chained_app_id" value="<?php esc_attr_e( get_option('em_'. $this->gateway . "_app_id" )); ?>" />
-					<br />
-				</td>
-			</tr>
-			<tr valign="top">
-				<th scope="row"><?php _e('PayPal Mode', 'em-pro') ?></th>
-				<td>
-					<select name="paypal_chained_status">
-						<option value="live" <?php if (get_option('em_'. $this->gateway . "_status" ) == 'live') echo 'selected="selected"'; ?>><?php _e('Live Site', 'em-pro') ?></option>
-						<option value="test" <?php if (get_option('em_'. $this->gateway . "_status" ) == 'test') echo 'selected="selected"'; ?>><?php _e('Test Mode (Sandbox)', 'em-pro') ?></option>
-					</select>
-					<br />
-				</td>
-			</tr>
-			<tr valign="top">
-				<th scope="row"><?php _e('PayPal API Username', 'em-pro') ?></th>
-					<td><input type="text" name="paypal_chained_api_username" value="<?php esc_attr_e( get_option('em_'. $this->gateway . "_api_username" )); ?>" />
-					<br />
-				</td>
-			</tr>
-			<tr valign="top">
-				<th scope="row"><?php _e('PayPal API Password', 'em-pro') ?></th>
-					<td><input type="password" name="paypal_chained_api_password" value="<?php esc_attr_e( get_option('em_'. $this->gateway . "_api_password" )); ?>" />
-					<br />
-				</td>
-			</tr>
-			<tr valign="top">
-				<th scope="row"><?php _e('PayPal API Signature', 'em-pro') ?></th>
-					<td><input type="text" name="paypal_chained_api_signature" value="<?php esc_attr_e( get_option('em_'. $this->gateway . "_api_signature" )); ?>" />
-					<br />
-				</td>
-			</tr>
-			<tr valign="top">
-				<th scope="row"><?php _e('PayPal Sandbox API Username', 'em-pro') ?></th>
-					<td><input type="text" name="paypal_chained_api_sb_username" value="<?php esc_attr_e( get_option('em_'. $this->gateway . "_api_sb_username" )); ?>" />
-					<br />
-				</td>
-			</tr>
-			<tr valign="top">
-				<th scope="row"><?php _e('PayPal Sandbox API Password', 'em-pro') ?></th>
-					<td><input type="password" name="paypal_chained_api_sb_password" value="<?php esc_attr_e( get_option('em_'. $this->gateway . "_api_sb_password" )); ?>" />
-					<br />
-				</td>
-			</tr>
-			<tr valign="top">
-				<th scope="row"><?php _e('PayPal Sandbox API Signature', 'em-pro') ?></th>
-					<td><input type="text" name="paypal_chained_api_sb_signature" value="<?php esc_attr_e( get_option('em_'. $this->gateway . "_api_sb_signature" )); ?>" />
-					<br />
-				</td>
-			</tr>
-			<tr valign="top">
-				<th scope="row"><?php _e('Return URL', 'em-pro') ?></th>
-				<td>
-					<input type="text" name="paypal_chained_return" value="<?php esc_attr_e(get_option('em_'. $this->gateway . "_return" )); ?>" style='width: 40em;' /><br />
-					<em><?php _e('Once a payment is completed, users will be offered a link to this URL which confirms to the user that a payment is made. If you would to customize the thank you page, create a new page and add the link here. For automatic redirect, you need to turn auto-return on in your PayPal settings.', 'em-pro'); ?></em>
-				</td>
-			</tr>
-			<tr valign="top">
-				<th scope="row"><?php _e('Cancel URL', 'em-pro') ?></th>
-				<td>
-					<input type="text" name="paypal_chained_cancel_return" value="<?php esc_attr_e(get_option('em_'. $this->gateway . "_cancel_return" )); ?>" style='width: 40em;' /><br />
-					<em><?php _e('Whilst paying on PayPal, if a user cancels, they will be redirected to this page.', 'em-pro'); ?></em>
-				</td>
-			</tr>
-			<?php /*
-			<tr valign="top">
 				<th scope="row"><?php _e('PayPal Page Logo', 'em-pro') ?></th>
 				<td>
 					<input type="text" name="paypal_chained_format_logo" value="<?php esc_attr_e(get_option('em_'. $this->gateway . "_format_logo" )); ?>" style='width: 40em;' /><br />
@@ -804,6 +823,43 @@ Events Manager
 				</td>
 			</tr>
 			*/ ?>
+			<tr valign="top">
+				<th scope="row"><?php _e('Fees Payer', 'em-pro') ?></th>
+				<td>
+					<select name="paypal_chained_fees_payer">
+						<?php
+							$fee_options = array(
+								"SENDER" => "Sender",
+								"PRIMARYRECEIVER" => "Primary Reveiver",
+								"EACHRECEIVER" => "Each Reveiver",
+								"SECONDARYONLY" => "Secondary Only",
+							);
+							$curr_fee_payer_val = get_option('em_'. $this->gateway . "_fees_payer" );
+						?>
+						<?php foreach( $fee_options as $val => $label ): ?>
+							<option value="<?php echo $val ?>" <?php echo ( $val == $curr_fee_payer_val ? 'selected="selected"' :'') ?>>
+								<?php echo $label ?>
+							</option>
+						<?php endforeach; ?>
+					</select>
+					<br />
+				</td>
+			</tr>
+
+			<tr valign="top">
+				<th scope="row"><?php _e('Return URL', 'em-pro') ?></th>
+				<td>
+					<input type="text" name="paypal_chained_return" value="<?php esc_attr_e(get_option('em_'. $this->gateway . "_return" )); ?>" style='width: 40em;' /><br />
+					<em><?php _e('Once a payment is completed, users will be offered a link to this URL which confirms to the user that a payment is made. If you would to customize the thank you page, create a new page and add the link here. For automatic redirect, you need to turn auto-return on in your PayPal settings.', 'em-pro'); ?></em>
+				</td>
+			</tr>
+			<tr valign="top">
+				<th scope="row"><?php _e('Cancel URL', 'em-pro') ?></th>
+				<td>
+					<input type="text" name="paypal_chained_cancel_return" value="<?php esc_attr_e(get_option('em_'. $this->gateway . "_cancel_return" )); ?>" style='width: 40em;' /><br />
+					<em><?php _e('Whilst paying on PayPal, if a user cancels, they will be redirected to this page.', 'em-pro'); ?></em>
+				</td>
+			</tr>
 			<tr valign="top">
 				<th scope="row"><?php _e('Delete Bookings Pending Payment', 'em-pro') ?></th>
 				<td>
@@ -830,15 +886,18 @@ Events Manager
 	function update() {
 		parent::update();
 		$gateway_options = array(
-			$this->gateway . "_email" => $_REQUEST[ $this->gateway.'_email' ],
+			$this->gateway . "_dev_email" => $_REQUEST[ $this->gateway.'_dev_email' ],
 			$this->gateway . "_app_id" => $_REQUEST[ $this->gateway.'_app_id' ],
 			$this->gateway . "_site" => $_REQUEST[ $this->gateway.'_site' ],
+			$this->gateway . "_email" => $_REQUEST[ $this->gateway.'_email' ],
 			$this->gateway . "_api_username" => $_REQUEST[ $this->gateway.'_api_username' ],
 			$this->gateway . "_api_password" => $_REQUEST[ $this->gateway.'_api_password' ],
 			$this->gateway . "_api_signature" => $_REQUEST[ $this->gateway.'_api_signature' ],
+			$this->gateway . "_sb_email" => $_REQUEST[ $this->gateway.'_sb_email' ],
 			$this->gateway . "_api_sb_username" => $_REQUEST[ $this->gateway.'_api_sb_username' ],
 			$this->gateway . "_api_sb_password" => $_REQUEST[ $this->gateway.'_api_sb_password' ],
 			$this->gateway . "_api_sb_signature" => $_REQUEST[ $this->gateway.'_api_sb_signature' ],
+			$this->gateway . "_fees_payer" => $_REQUEST[ $this->gateway.'_fees_payer' ],
 			$this->gateway . "_currency" => $_REQUEST[ 'currency' ],
 			$this->gateway . "_lc" => $_REQUEST[ $this->gateway.'_lc' ],
 			$this->gateway . "_status" => $_REQUEST[ $this->gateway.'_status' ],
