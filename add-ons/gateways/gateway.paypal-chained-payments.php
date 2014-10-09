@@ -114,136 +114,7 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 
   	if( $result ) {
 
-			// Get Adaptive Payments Pay Key
-			require_once('lib/angelleye/PayPal/PayPal.php');
-			require_once('lib/angelleye/PayPal/Adaptive.php');
-
-			// Create PayPal object.
-			$PayPalConfig = array(
-				'DeveloperAccountEmail' => get_option('em_'. $this->gateway . "_email" ),
-				//'DeviceID' => $device_id,
-				'IPAddress' => $_SERVER['REMOTE_ADDR'],
-				'APISubject' => '', // If making calls on behalf a third party, their PayPal email address or account ID goes here.
-				//'PrintHeaders' => $print_headers,
-				'LogResults' => true,                                                  
-				'LogPath' => $_SERVER['DOCUMENT_ROOT'].'/logs/',
-			);
-
-			// Differing values for Sandbox or Live
-			if( get_option('em_'. $this->gateway . "_status" ) == 'test') {
-				$PayPalConfig['Sandbox']       = true;
-				$PayPalConfig['ApplicationID'] = 'APP-80W284485P519543T';
-				$PayPalConfig['APIUsername']   = get_option('em_'. $this->gateway . "_api_sb_username");
-				$PayPalConfig['APIPassword']   = get_option('em_'. $this->gateway . "_api_sb_password");
-				$PayPalConfig['APISignature']  = get_option('em_'. $this->gateway . "_api_sb_signature");
-			}else{
-				$PayPalConfig['Sandbox']       = false;
-				$PayPalConfig['ApplicationID'] = get_option('em_'. $this->gateway . "_app_id");
-				$PayPalConfig['APIUsername']   = get_option('em_'. $this->gateway . "_api_username");
-				$PayPalConfig['APIPassword']   = get_option('em_'. $this->gateway . "_api_password");
-				$PayPalConfig['APISignature']  = get_option('em_'. $this->gateway . "_api_signature");
-			}
-
-			$PayPal = new angelleye\PayPal\Adaptive($PayPalConfig);
-
-			if( $this->get_payment_return_url() ) {
-				$return_url = $this->get_payment_return_url();
-			}else{
-				$return_url = get_permalink(get_option("dbem_my_bookings_page")).'?thanks=1';
-			}
-
-			// Optional
-			/*
-			$ClientDetailsFields = array(
-				'CustomerID' => '', 								// Your ID for the sender  127 char max.
-				'CustomerType' => '', 								// Your ID of the type of customer.  127 char max.
-				'GeoLocation' => '', 								// Sender's geographic location
-				'Model' => '', 										// A sub-identification of the application.  127 char max.
-				'PartnerName' => ''									// Your organization's name or ID
-			);
-			*/
-
-			// Funding constraints require advanced permissions levels.
-			//$FundingTypes = array('ECHECK', 'BALANCE', 'CREDITCARD');
-
-			$Receivers = array();
-			$Receiver = array(
-				'Amount' => $EM_Booking->get_price(false, false, true),
-				'Email' => 'usb_1329725429_biz@angelleye.com', 												// Receiver's email address. 127 char max.
-				'InvoiceID' => '', 											// The invoice number for the payment.  127 char max.
-				'PaymentType' => '', 										// Transaction type.  Values are:  GOODS, SERVICE, PERSONAL, CASHADVANCE, DIGITALGOODS
-				'PaymentSubType' => '', 									// The transaction subtype for the payment.
-				'Phone' => array('CountryCode' => '', 'PhoneNumber' => '', 'Extension' => ''), // Receiver's phone number.   Numbers only.
-				'Primary' => 'true'												// Whether this receiver is the primary receiver.  Values are boolean:  TRUE, FALSE
-			);
-			array_push($Receivers,$Receiver);
-/*
-			$Receiver = array(
-				'Amount' => '50.00', 											// Required.  Amount to be paid to the receiver.
-				'Email' => 'sandbo_1215254764_biz@angelleye.com', 												// Receiver's email address. 127 char max.
-				'InvoiceID' => '', 											// The invoice number for the payment.  127 char max.
-				'PaymentType' => '', 										// Transaction type.  Values are:  GOODS, SERVICE, PERSONAL, CASHADVANCE, DIGITALGOODS
-				'PaymentSubType' => '', 									// The transaction subtype for the payment.
-				'Phone' => array('CountryCode' => '', 'PhoneNumber' => '', 'Extension' => ''), // Receiver's phone number.   Numbers only.
-				'Primary' => 'false'												// Whether this receiver is the primary receiver.  Values are boolean:  TRUE, FALSE
-			);
-			array_push($Receivers,$Receiver);
-*/
-			// This is the big one. Hook into this to add or modify Receivers. Without multiple receivers Chained payment request will fail.
-			$Receivers = apply_filters('em_gateway_paypal_chained_receivers', $Receivers, $EM_Booking, $this);
-
-			//if( count( $Receivers ) > 1
-
-			// Prepare request arrays, only creating chained payment settings if more than one receiver
-			$PayRequestFields = array(
-				'ActionType'   => 'PAY_PRIMARY', // Required.  Whether the request pays the receiver or whether the request is set up to create a payment request, but not fulfill the payment until the ExecutePayment is called.  Values are:  PAY, CREATE, PAY_PRIMARY
-				'CancelURL'    => '<![CDATA['.get_option('em_'. $this->gateway . "_cancel_return" ).']]>',
-				'CurrencyCode' => get_option('dbem_bookings_currency', 'USD'),
-				'FeesPayer'    => 'PRIMARYRECEIVER', // The payer of the fees.  Values are:  SENDER, PRIMARYRECEIVER, EACHRECEIVER, SECONDARYONLY
-				'IPNNotificationURL' => '<![CDATA['.$this->get_payment_return_url().']]>',
-				//'Memo' => '', // A note associated with the payment (text, not HTML).  1000 char max
-				//'Pin' => '', // The sener's personal id number, which was specified when the sender signed up for the preapproval
-				//'PreapprovalKey' => '',	// The key associated with a preapproval for this payment.  The preapproval is required if this is a preapproved payment.
-				'ReturnURL'    => '<![CDATA['.$return_url.']]>', 	// Required. The URL to which the sener's browser is redirected after approvaing a payment on paypal.com.  1024 char max.
-				//'ReverseAllParallelPaymentsOnError' => FALSE,	// Whether to reverse paralel payments if an error occurs with a payment.  Values are:  TRUE, FALSE
-				'SenderEmail'  => '',
-				'TrackingID'   => $EM_Booking->booking_id,
-			);
-//error_log( print_r( $PayRequestFields ) );
-
-
-			// Optional
-			/*
-			$SenderIdentifierFields = array(
-				'UseCredentials' => ''						// If TRUE, use credentials to identify the sender.  Default is false.
-			);
-			*/
-
-			// Optional
-			/*
-			$AccountIdentifierFields = array(
-				'Email' => '', 								// Sender's email address.  127 char max.
-				'Phone' => array('CountryCode' => '', 'PhoneNumber' => '', 'Extension' => '')								// Sender's phone number.  Numbers only.
-			);
-			*/
-
-
-			$PayPalRequestData = array(
-				'PayRequestFields' => $PayRequestFields,
-				//'ClientDetailsFields' => $ClientDetailsFields,
-				//'FundingTypes' => $FundingTypes,
-				'Receivers' => $Receivers,
-				//'SenderIdentifierFields' => $SenderIdentifierFields,
-				//'AccountIdentifierFields' => $AccountIdentifierFields
-			);
-
-			// Add hook for Request Data
-			$PayPalRequestData = apply_filters('em_gateway_paypal_chained_paypal_request_data', $PayPalRequestData, $EM_Booking, $this);
-
-//error_log( print_r( $PayPalRequestData, true ) );
-
-			// Pass data into class for processing with PayPal and load the response array into $PayPalResult
-			$PayPalResult = $PayPal->Pay($PayPalRequestData);
+  		$PayPalResult = $this->paypal_pre_approval( $EM_Booking );
 
 //error_log( print_r( $PayPalResult, true ) );
 
@@ -283,21 +154,30 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 	 * @return string
 	 */
 	function em_my_bookings_booking_actions( $message, $EM_Booking){
-			global $wpdb;
+		global $wpdb;
+
 		if($this->uses_gateway($EM_Booking) && $EM_Booking->booking_status == $this->status){
-				//first make sure there's no pending payments
-				$pending_payments = $wpdb->get_var('SELECT COUNT(*) FROM '.EM_TRANSACTIONS_TABLE. " WHERE booking_id='{$EM_Booking->booking_id}' AND transaction_gateway='{$this->gateway}' AND transaction_status='Pending'");
-				if( $pending_payments == 0 ){
+			//first make sure there's no pending payments
+			$pending_payments = $wpdb->get_var('SELECT COUNT(*) FROM '.EM_TRANSACTIONS_TABLE. " WHERE booking_id='{$EM_Booking->booking_id}' AND transaction_gateway='{$this->gateway}' AND transaction_status='Pending'");
+			if( $pending_payments == 0 ){
 				//user owes money!
-				$paypal_vars = $this->get_paypal_vars($EM_Booking);
-				$form = '<form action="'.$this->get_paypal_url().'" method="post">';
-				foreach($paypal_vars as $key=>$value){
-					$form .= '<input type="hidden" name="'.$key.'" value="'.$value.'" />';
+
+				$pay_pal_result = $this->paypal_pre_approval( $EM_Booking );
+
+				if( $pay_pal_result['Ack'] == 'Success') {
+					$this->payKey = $pay_pal_result['PayKey'];
+					$paypal_vars = $this->get_paypal_vars($EM_Booking);
+					$form = '<form action="'.$this->get_paypal_url().'" method="post">';
+					foreach($paypal_vars as $key=>$value){
+						$form .= '<input type="hidden" name="'.$key.'" value="'.$value.'" />';
+					}
+					$form .= '<input type="submit" value="'.__('Resume Payment','em-pro').'">';
+					$form .= '</form>';
+					$message .= $form;
+				}else{
+					$message.='Unable to create PayPal Pay Button: '.$pay_pal_result['Errors'][0]['Message'];
 				}
-				$form .= '<input type="submit" value="'.__('Resume Payment','em-pro').'">';
-				$form .= '</form>';
-				$message .= $form;
-				}
+			}
 		}
 		return $message;
 	}
@@ -425,6 +305,149 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 
                                     
 	}
+
+
+	/**
+	 * Perform PayPal Pre Approval request and return the result.
+	 * Prepare all config vars for PayPal Request
+	 * @params $EM_Booking
+	 * @returns array $PayPalResponse
+	 */
+	function paypal_pre_approval( $EM_Booking ) {
+		// Get Adaptive Payments Pay Key
+		require_once('lib/angelleye/PayPal/PayPal.php');
+		require_once('lib/angelleye/PayPal/Adaptive.php');
+
+		// Create PayPal object.
+		$PayPalConfig = array(
+			'DeveloperAccountEmail' => get_option('em_'. $this->gateway . "_email" ),
+			//'DeviceID' => $device_id,
+			'IPAddress' => $_SERVER['REMOTE_ADDR'],
+			'APISubject' => '', // If making calls on behalf a third party, their PayPal email address or account ID goes here.
+			//'PrintHeaders' => $print_headers,
+			'LogResults' => true,                                                  
+			'LogPath' => $_SERVER['DOCUMENT_ROOT'].'/logs/',
+		);
+
+		// Differing values for Sandbox or Live
+		if( get_option('em_'. $this->gateway . "_status" ) == 'test') {
+			$PayPalConfig['Sandbox']       = true;
+			$PayPalConfig['ApplicationID'] = 'APP-80W284485P519543T';
+			$PayPalConfig['APIUsername']   = get_option('em_'. $this->gateway . "_api_sb_username");
+			$PayPalConfig['APIPassword']   = get_option('em_'. $this->gateway . "_api_sb_password");
+			$PayPalConfig['APISignature']  = get_option('em_'. $this->gateway . "_api_sb_signature");
+		}else{
+			$PayPalConfig['Sandbox']       = false;
+			$PayPalConfig['ApplicationID'] = get_option('em_'. $this->gateway . "_app_id");
+			$PayPalConfig['APIUsername']   = get_option('em_'. $this->gateway . "_api_username");
+			$PayPalConfig['APIPassword']   = get_option('em_'. $this->gateway . "_api_password");
+			$PayPalConfig['APISignature']  = get_option('em_'. $this->gateway . "_api_signature");
+		}
+
+		$PayPal = new angelleye\PayPal\Adaptive($PayPalConfig);
+
+		if( $this->get_payment_return_url() ) {
+			$return_url = $this->get_payment_return_url();
+		}else{
+			$return_url = get_permalink(get_option("dbem_my_bookings_page")).'?thanks=1';
+		}
+
+		// Optional
+		/*
+		$ClientDetailsFields = array(
+			'CustomerID' => '', 								// Your ID for the sender  127 char max.
+			'CustomerType' => '', 								// Your ID of the type of customer.  127 char max.
+			'GeoLocation' => '', 								// Sender's geographic location
+			'Model' => '', 										// A sub-identification of the application.  127 char max.
+			'PartnerName' => ''									// Your organization's name or ID
+		);
+		*/
+
+		// Funding constraints require advanced permissions levels.
+		//$FundingTypes = array('ECHECK', 'BALANCE', 'CREDITCARD');
+
+		$Receivers = array();
+		$Receiver = array(
+			'Amount' => $EM_Booking->get_price(false, false, true),
+			'Email' => 'usb_1329725429_biz@angelleye.com', 												// Receiver's email address. 127 char max.
+			'InvoiceID' => '', 											// The invoice number for the payment.  127 char max.
+			'PaymentType' => '', 										// Transaction type.  Values are:  GOODS, SERVICE, PERSONAL, CASHADVANCE, DIGITALGOODS
+			'PaymentSubType' => '', 									// The transaction subtype for the payment.
+			'Phone' => array('CountryCode' => '', 'PhoneNumber' => '', 'Extension' => ''), // Receiver's phone number.   Numbers only.
+			'Primary' => 'true'												// Whether this receiver is the primary receiver.  Values are boolean:  TRUE, FALSE
+		);
+		array_push($Receivers,$Receiver);
+/*
+		$Receiver = array(
+			'Amount' => '50.00', 											// Required.  Amount to be paid to the receiver.
+			'Email' => 'sandbo_1215254764_biz@angelleye.com', 												// Receiver's email address. 127 char max.
+			'InvoiceID' => '', 											// The invoice number for the payment.  127 char max.
+			'PaymentType' => '', 										// Transaction type.  Values are:  GOODS, SERVICE, PERSONAL, CASHADVANCE, DIGITALGOODS
+			'PaymentSubType' => '', 									// The transaction subtype for the payment.
+			'Phone' => array('CountryCode' => '', 'PhoneNumber' => '', 'Extension' => ''), // Receiver's phone number.   Numbers only.
+			'Primary' => 'false'												// Whether this receiver is the primary receiver.  Values are boolean:  TRUE, FALSE
+		);
+		array_push($Receivers,$Receiver);
+*/
+		// This is the big one. Hook into this to add or modify Receivers. Without multiple receivers Chained payment request will fail.
+		$Receivers = apply_filters('em_gateway_paypal_chained_receivers', $Receivers, $EM_Booking, $this);
+
+		//if( count( $Receivers ) > 1
+
+		// Prepare request arrays, only creating chained payment settings if more than one receiver
+		$PayRequestFields = array(
+			'ActionType'   => 'PAY_PRIMARY', // Required.  Whether the request pays the receiver or whether the request is set up to create a payment request, but not fulfill the payment until the ExecutePayment is called.  Values are:  PAY, CREATE, PAY_PRIMARY
+			'CancelURL'    => '<![CDATA['.get_option('em_'. $this->gateway . "_cancel_return" ).']]>',
+			'CurrencyCode' => get_option('dbem_bookings_currency', 'USD'),
+			'FeesPayer'    => 'PRIMARYRECEIVER', // The payer of the fees.  Values are:  SENDER, PRIMARYRECEIVER, EACHRECEIVER, SECONDARYONLY
+			'IPNNotificationURL' => '<![CDATA['.$this->get_payment_return_url().']]>',
+			//'Memo' => '', // A note associated with the payment (text, not HTML).  1000 char max
+			//'Pin' => '', // The sener's personal id number, which was specified when the sender signed up for the preapproval
+			//'PreapprovalKey' => '',	// The key associated with a preapproval for this payment.  The preapproval is required if this is a preapproved payment.
+			'ReturnURL'    => '<![CDATA['.$return_url.']]>', 	// Required. The URL to which the sener's browser is redirected after approvaing a payment on paypal.com.  1024 char max.
+			//'ReverseAllParallelPaymentsOnError' => FALSE,	// Whether to reverse paralel payments if an error occurs with a payment.  Values are:  TRUE, FALSE
+			'SenderEmail'  => '',
+			'TrackingID'   => $EM_Booking->booking_id,
+		);
+//error_log( print_r( $PayRequestFields ) );
+
+
+		// Optional
+		/*
+		$SenderIdentifierFields = array(
+			'UseCredentials' => ''						// If TRUE, use credentials to identify the sender.  Default is false.
+		);
+		*/
+
+		// Optional
+		/*
+		$AccountIdentifierFields = array(
+			'Email' => '', 								// Sender's email address.  127 char max.
+			'Phone' => array('CountryCode' => '', 'PhoneNumber' => '', 'Extension' => '')								// Sender's phone number.  Numbers only.
+		);
+		*/
+
+
+		$PayPalRequestData = array(
+			'PayRequestFields' => $PayRequestFields,
+			//'ClientDetailsFields' => $ClientDetailsFields,
+			//'FundingTypes' => $FundingTypes,
+			'Receivers' => $Receivers,
+			//'SenderIdentifierFields' => $SenderIdentifierFields,
+			//'AccountIdentifierFields' => $AccountIdentifierFields
+		);
+
+		// Add hook for Request Data
+		$PayPalRequestData = apply_filters('em_gateway_paypal_chained_paypal_request_data', $PayPalRequestData, $EM_Booking, $this);
+
+//error_log( print_r( $PayPalRequestData, true ) );
+
+		// Pass data into class for processing with PayPal and load the response array into $PayPalResult
+		$PayPalResult = $PayPal->Pay($PayPalRequestData);
+
+		return $PayPalResult;
+	}
+
 
 	/**
 	 * gets paypal gateway url (sandbox or live mode)
