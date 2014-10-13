@@ -121,6 +121,7 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 			if( $PayPalResult['Ack'] == 'Success') {
 				$this->payKey = $PayPalResult['PayKey'];
 			}else{
+
 				$EM_Booking->add_error('PayPal Error. Chained Payment Pay Key Generation failure: '.$PayPalResult['Errors'][0]['Message']);
 
         // If user was created as part of booking save, then remove.
@@ -348,8 +349,8 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 
 		$PayPal = new angelleye\PayPal\Adaptive($PayPalConfig);
 
-		if( $this->get_payment_return_url() ) {
-			$return_url = $this->get_payment_return_url();
+		if( get_option('em_'. $this->gateway . "_return") ) {
+			$return_url = get_option('em_'. $this->gateway . "_return");
 		}else{
 			$return_url = get_permalink(get_option("dbem_my_bookings_page")).'?thanks=1';
 		}
@@ -469,6 +470,7 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 	 * Runs when PayPal sends IPNs to the return URL provided during bookings and EM setup. Bookings are updated and transactions are recorded accordingly.
 	 */
 	function handle_payment_return() {
+
 		// PayPal IPN handling code
 		if ((isset($_POST['payment_status']) || isset($_POST['txn_type'])) && isset($_POST['custom'])) {
 
