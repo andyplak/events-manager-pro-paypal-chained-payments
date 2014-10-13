@@ -116,8 +116,6 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 
   		$PayPalResult = $this->paypal_pre_approval( $EM_Booking );
 
-//error_log( print_r( $PayPalResult, true ) );
-
 			if( $PayPalResult['Ack'] == 'Success') {
 				$this->payKey = $PayPalResult['PayKey'];
 			}else{
@@ -228,83 +226,6 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 		);
 
 		return apply_filters('em_gateway_paypal_chained_get_paypal_vars', $paypal_vars, $EM_Booking, $this);
-
-
-                            
-
-/*
-
-		$notify_url = $this->get_payment_return_url();
-		$paypal_vars = array(
-			'business' => get_option('em_'. $this->gateway . "_email" ),
-			'cmd' => '_cart',
-			'upload' => 1,
-			'currency_code' => get_option('dbem_bookings_currency', 'USD'),
-			'notify_url' =>$notify_url,
-			'custom' => $EM_Booking->booking_id.':'.$EM_Booking->event_id,
-			'charset' => 'UTF-8'
-		);
-		if( get_option('em_'. $this->gateway . "_lc" ) ){
-				$paypal_vars['lc'] = get_option('em_'. $this->gateway . "_lc" );
-		}
-		//address fields`and name/email fields to prefill on checkout page (if available)
-		$paypal_vars['email'] = $EM_Booking->get_person()->user_email;
-		$paypal_vars['first_name'] = $EM_Booking->get_person()->first_name;
-		$paypal_vars['last_name'] = $EM_Booking->get_person()->last_name;
-		if( EM_Gateways::get_customer_field('address', $EM_Booking) != '' ) $paypal_vars['address1'] = EM_Gateways::get_customer_field('address', $EM_Booking);
-		if( EM_Gateways::get_customer_field('address_2', $EM_Booking) != '' ) $paypal_vars['address2'] = EM_Gateways::get_customer_field('address_2', $EM_Booking);
-		if( EM_Gateways::get_customer_field('city', $EM_Booking) != '' ) $paypal_vars['city'] = EM_Gateways::get_customer_field('city', $EM_Booking);
-		if( EM_Gateways::get_customer_field('state', $EM_Booking) != '' ) $paypal_vars['state'] = EM_Gateways::get_customer_field('state', $EM_Booking);
-		if( EM_Gateways::get_customer_field('zip', $EM_Booking) != '' ) $paypal_vars['zip'] = EM_Gateways::get_customer_field('zip', $EM_Booking);
-		if( EM_Gateways::get_customer_field('country', $EM_Booking) != '' ) $paypal_vars['country'] = EM_Gateways::get_customer_field('country', $EM_Booking);
-
-		//tax is added regardless of whether included in ticket price, otherwise we can't calculate post/pre tax discounts
-		if( $EM_Booking->get_price_taxes() > 0 ){
-			$paypal_vars['tax_cart'] = round($EM_Booking->get_price_taxes(), 2);
-		}
-		if( get_option('em_'. $this->gateway . "_return" ) != "" ){
-			$paypal_vars['return'] = get_option('em_'. $this->gateway . "_return" );
-		}
-		if( get_option('em_'. $this->gateway . "_cancel_return" ) != "" ){
-			$paypal_vars['cancel_return'] = get_option('em_'. $this->gateway . "_cancel_return" );
-		}
-		if( get_option('em_'. $this->gateway . "_format_logo" ) !== false ){
-			$paypal_vars['cpp_logo_image'] = get_option('em_'. $this->gateway . "_format_logo" );
-		}
-		if( get_option('em_'. $this->gateway . "_border_color" ) !== false ){
-			$paypal_vars['cpp_cart_border_color'] = get_option('em_'. $this->gateway . "_format_border" );
-		}
-		$count = 1;
-		foreach( $EM_Booking->get_tickets_bookings()->tickets_bookings as $EM_Ticket_Booking ){
-				//divide price by spaces for per-ticket price
-				//we divide this way rather than by $EM_Ticket because that can be changed by user in future, yet $EM_Ticket_Booking will change if booking itself is saved.
-				$price = $EM_Ticket_Booking->get_price() / $EM_Ticket_Booking->get_spaces();
-			if( $price > 0 ){
-				$paypal_vars['item_name_'.$count] = wp_kses_data($EM_Ticket_Booking->get_ticket()->name);
-				$paypal_vars['quantity_'.$count] = $EM_Ticket_Booking->get_spaces();
-				$paypal_vars['amount_'.$count] = round($price,2);
-				$count++;
-			}
-		}
-		//calculate discounts, if any:
-		$discount = $EM_Booking->get_price_discounts_amount('pre') + $EM_Booking->get_price_discounts_amount('post');
-		if( $discount > 0 ){
-			$paypal_vars['discount_amount_cart'] = $discount;
-		}
-		return apply_filters('em_gateway_paypal_get_paypal_vars', $paypal_vars, $EM_Booking, $this);
-
-
-
-
-
-
-
-*/
-
-
-
-
-                                    
 	}
 
 
