@@ -399,7 +399,7 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 
 		// Prepare request arrays, only creating chained payment settings if more than one receiver
 		$PayRequestFields = array(
-			'ActionType'   => 'PAY_PRIMARY', // Required.  Whether the request pays the receiver or whether the request is set up to create a payment request, but not fulfill the payment until the ExecutePayment is called.  Values are:  PAY, CREATE, PAY_PRIMARY
+			'ActionType'   => 'PAY', // Required.  Whether the request pays the receiver or whether the request is set up to create a payment request, but not fulfill the payment until the ExecutePayment is called.  Values are:  PAY, CREATE, PAY_PRIMARY
 			'CancelURL'    => '<![CDATA['.get_option('em_'. $this->gateway . "_cancel_return" ).']]>',
 			'CurrencyCode' => get_option('dbem_bookings_currency', 'USD'),
 			'FeesPayer'    => get_option('em_'. $this->gateway . "_fees_payer" ),
