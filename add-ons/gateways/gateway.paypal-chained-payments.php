@@ -121,14 +121,14 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 			if( $PayPalResult['Ack'] == 'Success') {
 				$this->payKey = $PayPalResult['PayKey'];
 			}else{
-
 				$EM_Booking->add_error('PayPal Error. Chained Payment Pay Key Generation failure: '.$PayPalResult['Errors'][0]['Message']);
 
         // If user was created as part of booking save, then remove.
         if( !is_user_logged_in() && get_option('dbem_bookings_anonymous') && !get_option('dbem_bookings_registration_disable') && !empty($EM_Booking->person_id) ){
+
           //delete the user we just created, only if in last 2 minutes
           $EM_Person = $EM_Booking->get_person();
-          if( strtotime($EM_Person->user_registered) >= (current_time('timestamp')-120) ){
+          if( strtotime($EM_Person->user_registered) >= (current_time('timestamp', 1)-120) ){
             include_once(ABSPATH.'/wp-admin/includes/user.php');
             wp_delete_user($EM_Person->ID);
           }
