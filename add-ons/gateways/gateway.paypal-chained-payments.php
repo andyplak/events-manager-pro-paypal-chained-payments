@@ -395,33 +395,20 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 	}
 
 	/**
-	 * Runs when PayPal sends IPNs to the return URL provided during bookings and EM setup. Bookings are updated and transactions are recorded accordingly.
+	 * Runs when PayPal sends IPNs to the return URL provided during bookings and EM setup.
+	 * Bookings are updated and transactions are recorded accordingly.
 	 */
 	function handle_payment_return() {
 
-
-error_log( 'POST: '.print_r( $_POST, true ) );
-error_log( 'Tracking ID: '.print_r( $_POST['tracking_id'],true ));
-
-
-// Read POST data
-// reading posted data directly from $_POST causes serialization issues with
-// array data in POST. Reading raw POST data from input stream instead.
-$raw_post_data = file_get_contents('php://input');
-$raw_post_array = explode('&', $raw_post_data);
-$myPost = array();
-foreach ($raw_post_array as $keyval) {
-	$keyval = explode ('=', $keyval);
-	if (count($keyval) == 2)
-		$myPost[$keyval[0]] = urldecode($keyval[1]);
-}
-
-error_log( 'myPost: '.print_r( $myPost, true ) );
-
+		// Read POST data
+		// reading posted data directly from $_POST causes serialization issues with
+		// array data in POST. Reading raw POST data from input stream instead.
+		$raw_post_data = file_get_contents('php://input');
+		$post = $this->decodePayPalIPN( $raw_post_data );
 
 		// PayPal IPN handling code
-		if ((isset($_POST['payment_status']) || isset($_POST['txn_type'])) && isset($_POST['tracking_id'])) {
-error_log( "processing" );
+		if ((isset($post['status']) || isset($post['transaction_type'])) && isset($post['tracking_id'])) {
+
 				//Verify IPN request
 			if (get_option( 'em_'. $this->gateway . "_status" ) == 'live') {
 				$domain = 'https://www.paypal.com/cgi-bin/webscr';
@@ -429,11 +416,8 @@ error_log( "processing" );
 				$domain = 'https://www.sandbox.paypal.com/cgi-bin/webscr';
 			}
 
-			$req = 'cmd=_notify-validate';
-			if (!isset($_POST)) $_POST = $HTTP_POST_VARS;
-			foreach ($_POST as $k => $v) {
-				$req .= '&' . $k . '=' . urlencode(stripslashes($v));
-			}
+			$req = 'cmd=_notify-validate&'.$raw_post_data;
+
 			@set_time_limit(60);
 
 			//add a CA certificate so that SSL requests always go through
@@ -441,47 +425,55 @@ error_log( "processing" );
 			//using WP's HTTP class
 			$ipn_verification_result = wp_remote_get($domain.'?'.$req, array('httpversion', '1.1'));
 			remove_action('http_api_curl','EM_Gateway_Paypal_Chained::payment_return_local_ca_curl',10,1);
-error_log( $ipn_verification_result['body'] );
 
 			if ( !is_wp_error($ipn_verification_result) && $ipn_verification_result['body'] == 'VERIFIED' ) {
 				//log ipn request if needed, then move on
-				EM_Pro::log( $_POST['payment_status']." successfully received for {$_POST['mc_gross']} {$_POST['mc_currency']} (TXN ID {$_POST['txn_id']}) - Custom Info: {$_POST['custom']}", 'paypal');
+				EM_Pro::log( $post['transaction_type']." successfully received for {$post['transaction'][0]['amount']} (TXN ID {$post['transaction'][0]['id']}) - Booking: {$post['tracking_id']}", 'paypal_chained');
 			}else{
 					//log error if needed, send error header and exit
-				EM_Pro::log( array('IPN Verification Error', 'WP_Error'=> $ipn_verification_result, '$_POST'=> $_POST, '$req'=>$domain.'?'.$req), 'paypal' );
-					header('HTTP/1.0 502 Bad Gateway');
-					exit;
+				EM_Pro::log( array('IPN Verification Error', 'WP_Error'=> $ipn_verification_result, '$_POST'=> $post, '$req'=>$domain.'?'.$req), 'paypal_chained' );
+				header('HTTP/1.0 502 Bad Gateway');
+				exit;
 			}
 			//if we get past this, then the IPN went ok
-error_log( print_r($_POST, true ));
+
 			// handle cases that the system must ignore
-			$new_status = false;
+
 			//Common variables
-			$amount = $_POST['mc_gross'];
-			$currency = $_POST['mc_currency'];
-			$timestamp = date('Y-m-d H:i:s', strtotime($_POST['payment_date']));
-			$custom_values = explode('_',$_GET['custom']);
-			$booking_id = $custom_values[0];
-error_log('Booking ID: '.$booking_id);
-			$event_id = !empty($custom_values[1]) ? $custom_values[1]:0;
-error_log('Event ID: '.$event_id);
+			$primary_transaction = null;
+
+			// Locate primary transaction:
+			foreach( $post['transaction'] as $transaction ) {
+				if( $transaction['is_primary_receiver'] ) {
+					$primary_transaction = $transaction;
+					break;
+				}
+			}
+			// We're interested in the primary receiver transaction as that is the main payment for the booking
+			// Any subsequent receivers is just the money being distributed based on the the em_gateway_paypal_chained_receivers hook
+			// As we don't know what they could be we won't try to save that information
+
+			$currency_amount = explode(' ', $primary_transaction['amount']);
+			$amount = $currency_amount[1];
+			$currency = $currency_amount[0];
+
+			$timestamp = date( 'Y-m-d H:i:s', strtotime( $post['payment_request_date'] ) );
+			$booking_id = $post['tracking_id'];
 			$EM_Booking = em_get_booking($booking_id);
-			if( !empty($EM_Booking->booking_id) && count($custom_values) == 2 ){
+
+			if( !empty($EM_Booking->booking_id) ){
 				//booking exists
 				$EM_Booking->manage_override = true; //since we're overriding the booking ourselves.
 				$user_id = $EM_Booking->person_id;
 
 				// process PayPal response
-				switch ($_POST['payment_status']) {
-					case 'Partially-Refunded':
-						break;
+				switch ($post['status']) {
 
-					case 'Completed':
-					case 'Processed':
+					case 'COMPLETED':
 						// case: successful payment
-						$this->record_transaction($EM_Booking, $amount, $currency, $timestamp, $_POST['txn_id'], $_POST['payment_status'], '');
+						$this->record_transaction($EM_Booking, $amount, $currency, $timestamp, $primary_transaction['id'], $post['status'], '');
 
-						if( $_POST['mc_gross'] >= $EM_Booking->get_price() && (!get_option('em_'.$this->gateway.'_manual_approval', false) || !get_option('dbem_bookings_approval')) ){
+						if( $amount >= $EM_Booking->get_price() && (!get_option('em_'.$this->gateway.'_manual_approval', false) || !get_option('dbem_bookings_approval')) ){
 							$EM_Booking->approve(true, true); //approve and ignore spaces
 						}else{
 							//TODO do something if pp payment not enough
@@ -490,40 +482,16 @@ error_log('Event ID: '.$event_id);
 						do_action('em_payment_processed', $EM_Booking, $this);
 						break;
 
-					case 'Reversed':
-						// case: charge back
-						$note = 'Last transaction has been reversed. Reason: Payment has been reversed (charge back)';
-						$this->record_transaction($EM_Booking, $amount, $currency, $timestamp, $_POST['txn_id'], $_POST['payment_status'], $note);
-
-						//We need to cancel their booking.
-						$EM_Booking->cancel();
-						do_action('em_payment_reversed', $EM_Booking, $this);
-
-						break;
-
-					case 'Refunded':
-						// case: refund
-						$note = 'Last transaction has been reversed. Reason: Payment has been refunded';
-						$this->record_transaction($EM_Booking, $amount, $currency, $timestamp, $_POST['txn_id'], $_POST['payment_status'], $note);
-						if( $EM_Booking->get_price() >= $amount ){
-							$EM_Booking->cancel();
-						}else{
-							$EM_Booking->set_status(0); //Set back to normal "pending"
-						}
-						do_action('em_payment_refunded', $EM_Booking, $this);
-						break;
-
-					case 'Denied':
-						// case: denied
-						$note = 'Last transaction has been reversed. Reason: Payment Denied';
-						$this->record_transaction($EM_Booking, $amount, $currency, $timestamp, $_POST['txn_id'], $_POST['payment_status'], $note);
+					case 'ERROR':
+						$note = 'The payment failed and all attempted transfers failed or all completed transfers were successfully reversed';
+						$this->record_transaction($EM_Booking, $amount, $currency, $timestamp, $primary_transaction['id'], $post['status'], $note);
 
 						$EM_Booking->cancel();
 						do_action('em_payment_denied', $EM_Booking, $this);
 						break;
 
-					case 'In-Progress':
-					case 'Pending':
+					case 'PROCESSING':
+					case 'PENDING':
 						// case: payment is pending
 						$pending_str = array(
 							'address' => 'Customer did not include a confirmed shipping address',
@@ -537,23 +505,46 @@ error_log('Event ID: '.$event_id);
 							'paymentreview' => 'Paypal is currently reviewing the payment and will approve or reject within 24 hours',
 							'*' => ''
 							);
-						$reason = @$_POST['pending_reason'];
+						$reason = @$post['pending_reason'];
 						$note = 'Last transaction is pending. Reason: ' . (isset($pending_str[$reason]) ? $pending_str[$reason] : $pending_str['*']);
 
-						$this->record_transaction($EM_Booking, $amount, $currency, $timestamp, $_POST['txn_id'], $_POST['payment_status'], $note);
+						$this->record_transaction($EM_Booking, $amount, $currency, $timestamp, $primary_transaction['id'], $post['status'], $note);
 
 						do_action('em_payment_pending', $EM_Booking, $this);
 						break;
 
+					/*
+					case 'Reversed':
+						// case: charge back
+						$note = 'Last transaction has been reversed. Reason: Payment has been reversed (charge back)';
+						$this->record_transaction($EM_Booking, $amount, $currency, $timestamp, $primary_transaction['id'], $post['status'], $note);
+
+						//We need to cancel their booking.
+						$EM_Booking->cancel();
+						do_action('em_payment_reversed', $EM_Booking, $this);
+						break;
+
+					case 'Refunded':
+						// case: refund
+						$note = 'Last transaction has been reversed. Reason: Payment has been refunded';
+						$this->record_transaction($EM_Booking, $amount, $currency, $timestamp, $primary_transaction['id'], $post['status'], $note);
+						if( $EM_Booking->get_price() >= $amount ){
+							$EM_Booking->cancel();
+						}else{
+							$EM_Booking->set_status(0); //Set back to normal "pending"
+						}
+						do_action('em_payment_refunded', $EM_Booking, $this);
+						break;
+					*/
+
 					default:
 						// case: various error cases
+						// https://developer.paypal.com/docs/classic/api/adaptive-payments/PaymentDetails_API_Operation/
 				}
 			}else{
-				if( is_numeric($event_id) && is_numeric($booking_id) && ($_POST['payment_status'] == 'Completed' || $_POST['payment_status'] == 'Processed') ){
-					$message = apply_filters('em_gateway_paypal_bad_booking_email',"
+				if( is_numeric($booking_id) && $post['status'] == 'COMPELETED' ) {
+					$message = apply_filters('em_gateway_paypal_chained_bad_booking_email',"
 A Payment has been received by PayPal for a non-existent booking.
-
-Event Details : %event%
 
 It may be that this user's booking has timed out yet they proceeded with payment at a later stage.
 
@@ -572,10 +563,8 @@ If there is still space available, the user must book again.
 
 Sincerely,
 Events Manager
-					", $booking_id, $event_id);
-					$EM_Event = new EM_Event($event_id);
-					$event_details = $EM_Event->name . " - " . date_i18n(get_option('date_format'), $EM_Event->start);
-					$message  = str_replace(array('%transaction_id%','%payer_email%', '%event%'), array($_POST['txn_id'], $_POST['payer_email'], $event_details), $message);
+					", $booking_id );
+					$message  = str_replace(array('%transaction_id%','%payer_email%'), array($primary_transaction['id'], $post['sender_email']), $message);
 					wp_mail(get_option('em_'. $this->gateway . "_email" ), __('Unprocessed payment needs refund'), $message);
 				}else{
 					//header('Status: 404 Not Found');
@@ -594,6 +583,54 @@ Events Manager
 			exit;
 		}
 	}
+
+	/**
+	 * Adaptive payments IPN post data comes in a format that PHP struggles with
+	 * decodePayPalIPN tries to make sense of it.
+	 * http://enjoysmile.com/blog/24/paypal-adaptive-payments-and-ipn-part-two/
+	 */
+	function decodePayPalIPN( $raw_post ) {
+		if (empty($raw_post)) {
+			return array();
+		} // else:
+		$post = array();
+		$pairs = explode('&', $raw_post);
+		foreach ($pairs as $pair) {
+			list($key, $value) = explode('=', $pair, 2);
+			$key = urldecode($key);
+			$value = urldecode($value);
+			// This is look for a key as simple as 'return_url' or as complex as 'somekey[x].property'
+			preg_match('/(\w+)(?:\[(\d+)\])?(?:\.(\w+))?/', $key, $key_parts);
+			switch (count($key_parts)) {
+				case 4:
+					// Original key format: somekey[x].property
+					// Converting to $post[somekey][x][property]
+					if (!isset($post[$key_parts[1]])) {
+						$post[$key_parts[1]] = array($key_parts[2] => array($key_parts[3] => $value));
+					} else if (!isset($post[$key_parts[1]][$key_parts[2]])) {
+						$post[$key_parts[1]][$key_parts[2]] = array($key_parts[3] => $value);
+					} else {
+						$post[$key_parts[1]][$key_parts[2]][$key_parts[3]] = $value;
+					}
+					break;
+				case 3:
+					// Original key format: somekey[x]
+					// Converting to $post[somkey][x]
+					if (!isset($post[$key_parts[1]])) {
+						$post[$key_parts[1]] = array();
+					}
+					$post[$key_parts[1]][$key_parts[2]] = $value;
+					break;
+				default:
+					// No special format
+					$post[$key] = $value;
+					break;
+			}//switch
+		}//foreach
+
+		return $post;
+	}
+
 
 	/**
 	 * Fixes SSL issues with wamp and outdated server installations combined with curl requests by forcing a custom pem file, generated from - http://curl.haxx.se/docs/caextract.html
@@ -642,12 +679,6 @@ Events Manager
 		</table>
 
 		<h3><?php echo sprintf(__('%s Options','em-pro'),'PayPal'); ?></h3>
-		<!--
-		<p><strong><?php _e('Important:','em-pro'); ?></strong>
-			<?php echo __('In order to connect PayPal with your site, you need to enable IPN on your account.'); ?><br />
-			<?php echo " ". sprintf(__('Your return url is %s','em-pro'),'<code>'.$this->get_payment_return_url().'</code>'); ?>
-		</p>
-	-->
 
 		<table class="form-table">
 		<tbody>
