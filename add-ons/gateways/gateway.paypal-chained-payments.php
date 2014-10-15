@@ -773,43 +773,6 @@ Events Manager
 				<th scope="row"><?php _e('Paypal Currency', 'em-pro') ?></th>
 				<td><?php echo esc_html(get_option('dbem_bookings_currency','USD')); ?><br /><i><?php echo sprintf(__('Set your currency in the <a href="%s">settings</a> page.','em-pro'),EM_ADMIN_URL.'&amp;page=events-manager-options#bookings'); ?></i></td>
 			</tr>
-<?php /*
-			<tr valign="top">
-				<th scope="row"><?php _e('PayPal Language', 'em-pro') ?></th>
-				<td>
-					<select name="paypal_chained_lc">
-						<option value=""><?php _e('Default','em-pro'); ?></option>
-					<?php
-					$ccodes = em_get_countries();
-					$paypal_lc = get_option('em_'.$this->gateway.'_lc', 'US');
-					foreach($ccodes as $key => $value){
-						if( $paypal_lc == $key ){
-							echo '<option value="'.$key.'" selected="selected">'.$value.'</option>';
-						}else{
-							echo '<option value="'.$key.'">'.$value.'</option>';
-						}
-					}
-					?>
-					</select>
-					<br />
-					<i><?php _e('PayPal allows you to select a default language users will see. This is also determined by PayPal which detects the locale of the users browser. The default would be US.','em-pro') ?></i>
-				</td>
-			</tr>
-			<tr valign="top">
-				<th scope="row"><?php _e('PayPal Page Logo', 'em-pro') ?></th>
-				<td>
-					<input type="text" name="paypal_chained_format_logo" value="<?php esc_attr_e(get_option('em_'. $this->gateway . "_format_logo" )); ?>" style='width: 40em;' /><br />
-					<em><?php _e('Add your logo to the PayPal payment page. It\'s highly recommended you link to a https:// address.', 'em-pro'); ?></em>
-				</td>
-			</tr>
-			<tr valign="top">
-				<th scope="row"><?php _e('Border Color', 'em-pro') ?></th>
-				<td>
-					<input type="text" name="paypal_chained_format_border" value="<?php esc_attr_e(get_option('em_'. $this->gateway . "_format_border" )); ?>" style='width: 40em;' /><br />
-					<em><?php _e('Provide a hex value color to change the color from the default blue to another color (e.g. #CCAAAA).','em-pro'); ?></em>
-				</td>
-			</tr>
-			*/ ?>
 			<tr valign="top">
 				<th scope="row"><?php _e('Fees Payer', 'em-pro') ?></th>
 				<td>
@@ -886,11 +849,7 @@ Events Manager
 			$this->gateway . "_api_sb_signature" => $_REQUEST[ $this->gateway.'_api_sb_signature' ],
 			$this->gateway . "_fees_payer" => $_REQUEST[ $this->gateway.'_fees_payer' ],
 			$this->gateway . "_currency" => $_REQUEST[ 'currency' ],
-			$this->gateway . "_lc" => $_REQUEST[ $this->gateway.'_lc' ],
 			$this->gateway . "_status" => $_REQUEST[ $this->gateway.'_status' ],
-			$this->gateway . "_tax" => $_REQUEST[ $this->gateway.'_button' ],
-			//$this->gateway . "_format_logo" => $_REQUEST[ $this->gateway.'_format_logo' ],
-			//$this->gateway . "_format_border" => $_REQUEST[ $this->gateway.'_format_border' ],
 			$this->gateway . "_manual_approval" => $_REQUEST[ $this->gateway.'_manual_approval' ],
 			$this->gateway . "_booking_feedback" => wp_kses_data($_REQUEST[ $this->gateway.'_booking_feedback' ]),
 			$this->gateway . "_booking_feedback_free" => wp_kses_data($_REQUEST[ $this->gateway.'_booking_feedback_free' ]),
@@ -898,7 +857,6 @@ Events Manager
 			$this->gateway . "_booking_timeout" => $_REQUEST[ $this->gateway.'_booking_timeout' ],
 			$this->gateway . "_return" => $_REQUEST[ $this->gateway.'_return' ],
 			$this->gateway . "_cancel_return" => $_REQUEST[ $this->gateway.'_cancel_return' ],
-			$this->gateway . "_form" => $_REQUEST[ $this->gateway.'_form' ]
 		);
 		foreach($gateway_options as $key=>$option){
 			update_option('em_'.$key, stripslashes($option));
