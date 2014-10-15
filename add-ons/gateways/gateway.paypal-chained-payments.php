@@ -325,7 +325,7 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 			'CurrencyCode' => get_option('dbem_bookings_currency', 'USD'),
 			'FeesPayer'    => get_option('em_'. $this->gateway . "_fees_payer" ),
 			'IPNNotificationURL' => '<![CDATA['.$this->get_payment_return_url().']]>',
-			//'Memo' => '', // A note associated with the payment (text, not HTML).  1000 char max
+			'Memo' => 'Booking for '.$EM_Booking->get_event()->event_name,
 			//'Pin' => '', // The sener's personal id number, which was specified when the sender signed up for the preapproval
 			//'PreapprovalKey' => '',	// The key associated with a preapproval for this payment.  The preapproval is required if this is a preapproved payment.
 			'ReturnURL'    => '<![CDATA['.$return_url.']]>', 	// Required. The URL to which the sener's browser is redirected after approvaing a payment on paypal.com.  1024 char max.
@@ -333,7 +333,6 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 			'SenderEmail'  => '',
 			'TrackingID'   => $EM_Booking->booking_id,
 		);
-//error_log( print_r( $PayRequestFields ) );
 
 
 		// Optional
@@ -392,9 +391,29 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 	 */
 	function handle_payment_return() {
 
-		// PayPal IPN handling code
-		if ((isset($_POST['payment_status']) || isset($_POST['txn_type'])) && isset($_POST['custom'])) {
 
+error_log( 'POST: '.print_r( $_POST, true ) );
+error_log( 'Tracking ID: '.print_r( $_POST['tracking_id'],true ));
+
+
+// Read POST data
+// reading posted data directly from $_POST causes serialization issues with
+// array data in POST. Reading raw POST data from input stream instead.
+$raw_post_data = file_get_contents('php://input');
+$raw_post_array = explode('&', $raw_post_data);
+$myPost = array();
+foreach ($raw_post_array as $keyval) {
+	$keyval = explode ('=', $keyval);
+	if (count($keyval) == 2)
+		$myPost[$keyval[0]] = urldecode($keyval[1]);
+}
+
+error_log( 'myPost: '.print_r( $myPost, true ) );
+
+
+		// PayPal IPN handling code
+		if ((isset($_POST['payment_status']) || isset($_POST['txn_type'])) && isset($_POST['tracking_id'])) {
+error_log( "processing" );
 				//Verify IPN request
 			if (get_option( 'em_'. $this->gateway . "_status" ) == 'live') {
 				$domain = 'https://www.paypal.com/cgi-bin/webscr';
@@ -407,14 +426,14 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 			foreach ($_POST as $k => $v) {
 				$req .= '&' . $k . '=' . urlencode(stripslashes($v));
 			}
-
 			@set_time_limit(60);
 
 			//add a CA certificate so that SSL requests always go through
-			add_action('http_api_curl','EM_Gateway_Paypal::payment_return_local_ca_curl',10,1);
+			add_action('http_api_curl','EM_Gateway_Paypal_Chained::payment_return_local_ca_curl',10,1);
 			//using WP's HTTP class
 			$ipn_verification_result = wp_remote_get($domain.'?'.$req, array('httpversion', '1.1'));
-			remove_action('http_api_curl','EM_Gateway_Paypal::payment_return_local_ca_curl',10,1);
+			remove_action('http_api_curl','EM_Gateway_Paypal_Chained::payment_return_local_ca_curl',10,1);
+error_log( $ipn_verification_result['body'] );
 
 			if ( !is_wp_error($ipn_verification_result) && $ipn_verification_result['body'] == 'VERIFIED' ) {
 				//log ipn request if needed, then move on
@@ -426,16 +445,18 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 					exit;
 			}
 			//if we get past this, then the IPN went ok
-
+error_log( print_r($_POST, true ));
 			// handle cases that the system must ignore
 			$new_status = false;
 			//Common variables
 			$amount = $_POST['mc_gross'];
 			$currency = $_POST['mc_currency'];
 			$timestamp = date('Y-m-d H:i:s', strtotime($_POST['payment_date']));
-			$custom_values = explode(':',$_POST['custom']);
+			$custom_values = explode('_',$_GET['custom']);
 			$booking_id = $custom_values[0];
+error_log('Booking ID: '.$booking_id);
 			$event_id = !empty($custom_values[1]) ? $custom_values[1]:0;
+error_log('Event ID: '.$event_id);
 			$EM_Booking = em_get_booking($booking_id);
 			if( !empty($EM_Booking->booking_id) && count($custom_values) == 2 ){
 				//booking exists
@@ -550,8 +571,9 @@ Events Manager
 					wp_mail(get_option('em_'. $this->gateway . "_email" ), __('Unprocessed payment needs refund'), $message);
 				}else{
 					//header('Status: 404 Not Found');
-					echo 'Error: Bad IPN request, custom ID does not correspond with any pending booking.';
-					//echo "<pre>"; print_r($_POST); echo "</pre>";
+					$error = 'Error: Bad IPN request, custom ID does not correspond with any pending booking.';
+					echo $error;
+					error_log( $error );
 					exit;
 				}
 			}
@@ -560,6 +582,7 @@ Events Manager
 			// Did not find expected POST variables. Possible access attempt from a non PayPal site.
 			//header('Status: 404 Not Found');
 			echo 'Error: Missing POST variables. Identification is not possible. If you are not PayPal and are visiting this page directly in your browser, this error does not indicate a problem, but simply means EM is correctly set up and ready to receive IPNs from PayPal only.';
+			error_log('PayPal Chained IPN error: Missing POST variables. Identification is not possible.');
 			exit;
 		}
 	}
@@ -611,10 +634,12 @@ Events Manager
 		</table>
 
 		<h3><?php echo sprintf(__('%s Options','em-pro'),'PayPal'); ?></h3>
+		<!--
 		<p><strong><?php _e('Important:','em-pro'); ?></strong>
 			<?php echo __('In order to connect PayPal with your site, you need to enable IPN on your account.'); ?><br />
 			<?php echo " ". sprintf(__('Your return url is %s','em-pro'),'<code>'.$this->get_payment_return_url().'</code>'); ?>
 		</p>
+	-->
 
 		<table class="form-table">
 		<tbody>
