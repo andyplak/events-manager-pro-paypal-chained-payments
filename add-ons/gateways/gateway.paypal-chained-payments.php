@@ -246,7 +246,7 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 			'IPAddress' => $_SERVER['REMOTE_ADDR'],
 			'APISubject' => '', // If making calls on behalf a third party, their PayPal email address or account ID goes here.
 			//'PrintHeaders' => $print_headers,
-			'LogResults' => true,                                                  
+			'LogResults' => false,
 			'LogPath' => $_SERVER['DOCUMENT_ROOT'].'/logs/',
 		);
 
