@@ -386,6 +386,14 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 		}
 	}
 
+	/*
+	 * Overide parent return url with value for rewrite rule defined in EM_Pro_PayPal_Chained.php
+	 * This is to prevent apache's mod_security blocking a POST request with GET vars in the url.
+	 */
+	function get_payment_return_url() {
+		return get_site_url()."/pp-chained-ipn";
+	}
+
 	/**
 	 * Runs when PayPal sends IPNs to the return URL provided during bookings and EM setup. Bookings are updated and transactions are recorded accordingly.
 	 */

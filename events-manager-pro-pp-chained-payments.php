@@ -12,8 +12,22 @@ class EM_Pro_PayPal_Chained {
 
   function EM_Pro_PayPal_Chained() {
     global $wpdb;
+
+    // Some rewite pre-requesits
+    add_action('init', array(&$this,'rewrite_init') );
+
     //Set when to run the plugin : after EM is loaded.
     add_action( 'plugins_loaded', array(&$this,'init'), 100 );
+  }
+
+  /**
+   * Add special rewrite rule for paypal IPN handler url
+   */
+  function rewrite_init() {
+    global $wp, $wp_rewrite;
+    $wp->add_query_var('action');
+    $wp->add_query_var('em_payment_gateway');
+    $wp_rewrite->add_rule('^pp-chained-ipn$', '/wp-admin/admin-ajax.php?action=em_payment&em_payment_gateway=paypal_chained', 'top');
   }
 
   function init() {
