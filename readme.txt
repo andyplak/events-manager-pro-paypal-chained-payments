@@ -13,8 +13,8 @@ Allows chained payments (funds split between different paypal accounts) to be ma
 
 Currently by default only the first receiver is set up based on the paypal config settings per the Gateway Admin. To make a chained payment you will need to hook into the em_gateway_paypal_chained_receivers filter to add additional receivers. If you do not do this, PayPal will throw an error.
 
-Example:
-`<?php 
+Example of how to use em_gateway_paypal_chained_receivers hook:
+`<?php
 
 /**
  * Hook into chained payments plugin to modify Receivers array
