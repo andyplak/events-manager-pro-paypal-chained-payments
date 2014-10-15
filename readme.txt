@@ -18,7 +18,6 @@ Example of how to use em_gateway_paypal_chained_receivers hook:
 
 /**
  * Hook into chained payments plugin to modify Receivers array
- * Pull PP user account email from buddypress profile value for "PayPal Account Email Address"
  */
 function my_em_gateway_paypal_chained_receivers($Receivers, $EM_Booking, $EM_Gateway_Paypal_Chained) {
 
