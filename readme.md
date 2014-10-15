@@ -1,11 +1,14 @@
-### Plugin Name
-Contributors: socarrat
-Tags: Events Manager, Events Manager Pro, PayPal, Chained Payments
-Requires at least: 3.0.1
-Tested up to: 4.0
-Stable tag: 0.1
+### PayPal Payment Gateway for Events Manager with Chained Payments
 
-PayPal Payment Gateway for Events Manager with Chained Payments
+Contributors: socarrat
+
+Tags: Events Manager, Events Manager Pro, PayPal, Chained Payments
+
+Requires at least: 3.0.1
+
+Tested up to: 4.0
+
+Stable tag: 0.1
 
 ### Description
 
