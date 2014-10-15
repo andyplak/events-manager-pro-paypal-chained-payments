@@ -409,7 +409,7 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 		// PayPal IPN handling code
 		if ((isset($post['status']) || isset($post['transaction_type'])) && isset($post['tracking_id'])) {
 
-				//Verify IPN request
+			//Verify IPN request
 			if (get_option( 'em_'. $this->gateway . "_status" ) == 'live') {
 				$domain = 'https://www.paypal.com/cgi-bin/webscr';
 			} else {
