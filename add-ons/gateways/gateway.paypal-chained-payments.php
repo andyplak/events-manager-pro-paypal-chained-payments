@@ -318,12 +318,15 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 
 		//if( count( $Receivers ) > 1
 
+		// Filter to allow fees payer setting to be modified on booking by booking basis
+		$fees_payer = apply_filters('em_gateway_paypal_chained_fees_payer', get_option('em_'. $this->gateway . "_fees_payer"), $Receivers, $EM_Booking, $this);
+
 		// Prepare request arrays, only creating chained payment settings if more than one receiver
 		$PayRequestFields = array(
 			'ActionType'   => 'PAY', // Required.  Whether the request pays the receiver or whether the request is set up to create a payment request, but not fulfill the payment until the ExecutePayment is called.  Values are:  PAY, CREATE, PAY_PRIMARY
 			'CancelURL'    => '<![CDATA['.get_option('em_'. $this->gateway . "_cancel_return" ).']]>',
 			'CurrencyCode' => get_option('dbem_bookings_currency', 'USD'),
-			'FeesPayer'    => get_option('em_'. $this->gateway . "_fees_payer" ),
+			'FeesPayer'    => $fees_payer,
 			'IPNNotificationURL' => '<![CDATA['.$this->get_payment_return_url().']]>',
 			'Memo' => 'Booking for '.$EM_Booking->get_event()->event_name,
 			//'Pin' => '', // The sener's personal id number, which was specified when the sender signed up for the preapproval
