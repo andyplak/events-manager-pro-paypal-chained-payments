@@ -27,7 +27,7 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 			//Gateway-Specific
 			add_action('em_template_my_bookings_header',array(&$this,'say_thanks')); //say thanks on my_bookings page
 			add_filter('em_bookings_table_booking_actions_4', array(&$this,'bookings_table_actions'),1,2);
-			add_filter('em_my_bookings_booking_actions', array(&$this,'em_my_bookings_booking_actions'),1,2);
+			//add_filter('em_my_bookings_booking_actions', array(&$this,'em_my_bookings_booking_actions'),1,2);
 			//set up cron
 			$timestamp = wp_next_scheduled('emp_paypal_cron');
 			if( absint(get_option('em_paypal_booking_timeout')) > 0 && !$timestamp ){
