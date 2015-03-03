@@ -95,50 +95,50 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 			add_action('option_dbem_booking_feedback', array(&$this, 'booking_form_feedback_fallback'));
 		}
 
-    if( get_option('dbem_multiple_bookings') ){
-        add_filter('em_multiple_booking_save', array(&$this, 'em_booking_save'),1,2);
-    }else{
-        add_filter('em_booking_save', array(&$this, 'em_booking_save'),1,2);
-    }
+		if( get_option('dbem_multiple_bookings') ){
+				add_filter('em_multiple_booking_save', array(&$this, 'em_booking_save'),1,2);
+		}else{
+				add_filter('em_booking_save', array(&$this, 'em_booking_save'),1,2);
+		}
 	}
 
-  /**
-   * Hook into booking save action. If save successful up till now
-   * generate the PayPal Pay Key ready for use later. Key generated here instead of
-   * in get PayPal Vars so we can throw an error in case of PayKey generation failure.
-   *
-   * @param bool $result
-   * @param EM_Booking $EM_Booking
-   */
-  function em_booking_save( $result, $EM_Booking ){
+	/**
+	 * Hook into booking save action. If save successful up till now
+	 * generate the PayPal Pay Key ready for use later. Key generated here instead of
+	 * in get PayPal Vars so we can throw an error in case of PayKey generation failure.
+	 *
+	 * @param bool $result
+	 * @param EM_Booking $EM_Booking
+	 */
+	function em_booking_save( $result, $EM_Booking ){
 
-  	if( $result ) {
+		if( $result ) {
 
-  		$PayPalResult = $this->paypal_pre_approval( $EM_Booking );
+			$PayPalResult = $this->paypal_pre_approval( $EM_Booking );
 
 			if( $PayPalResult['Ack'] == 'Success') {
 				$this->payKey = $PayPalResult['PayKey'];
 			}else{
 				$EM_Booking->add_error('PayPal Error. Chained Payment Pay Key Generation failure: '.$PayPalResult['Errors'][0]['Message']);
 
-        // If user was created as part of booking save, then remove.
-        if( !is_user_logged_in() && get_option('dbem_bookings_anonymous') && !get_option('dbem_bookings_registration_disable') && !empty($EM_Booking->person_id) ){
+				// If user was created as part of booking save, then remove.
+				if( !is_user_logged_in() && get_option('dbem_bookings_anonymous') && !get_option('dbem_bookings_registration_disable') && !empty($EM_Booking->person_id) ){
 
-          //delete the user we just created, only if in last 2 minutes
-          $EM_Person = $EM_Booking->get_person();
-          if( strtotime($EM_Person->user_registered) >= (current_time('timestamp', 1)-120) ){
-            include_once(ABSPATH.'/wp-admin/includes/user.php');
-            wp_delete_user($EM_Person->ID);
-          }
-        }
-        //Delete this booking from db
-        $EM_Booking->delete();
+					//delete the user we just created, only if in last 2 minutes
+					$EM_Person = $EM_Booking->get_person();
+					if( strtotime($EM_Person->user_registered) >= (current_time('timestamp', 1)-120) ){
+						include_once(ABSPATH.'/wp-admin/includes/user.php');
+						wp_delete_user($EM_Person->ID);
+					}
+				}
+				//Delete this booking from db
+				$EM_Booking->delete();
 				return false;
 			}
-  	}
+		}
 
-  	return $result;
-  }
+		return $result;
+	}
 
 	/*
 	 * --------------------------------------------------
