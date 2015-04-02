@@ -786,8 +786,8 @@ Events Manager
 						<?php
 							$fee_options = array(
 								"SENDER" => "Sender",
-								"PRIMARYRECEIVER" => "Primary Reveiver",
-								"EACHRECEIVER" => "Each Reveiver",
+								"PRIMARYRECEIVER" => "Primary Receiver",
+								"EACHRECEIVER" => "Each Receiver",
 								"SECONDARYONLY" => "Secondary Only",
 							);
 							$curr_fee_payer_val = get_option('em_'. $this->gateway . "_fees_payer" );
