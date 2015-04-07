@@ -1,12 +1,14 @@
 <?php
 /*
 Plugin Name: Events Manager Pro - PayPal chained payments
-Version: 1.0
+Version: 1.1
 Plugin URI: http://www.andyplace.co.uk
 Description: PayPal payment gateway allowing chained payments
 Author: Andy Place
 Author URI: http://wp-events-plugin.com
 */
+
+include_once( ABSPATH . 'wp-admin/includes/plugin.php' );
 
 class EM_Pro_PayPal_Chained {
 
@@ -31,11 +33,17 @@ class EM_Pro_PayPal_Chained {
   }
 
   function init() {
+    if( is_plugin_active('events-manager/events-manager.php') && is_plugin_active('events-manager-pro/events-manager-pro.php') ) {
+      include('add-ons/gateways/gateway.paypal-chained-payments.php');
+    }else{
+      add_action( 'admin_notices', array(&$this,'not_activated_error_notice') );
+    }
+  }
 
-    // @TODO: Disable if Events Manager Pro plugin not active. Add flash notice.
-
-    //add-ons
-    include('add-ons/gateways/gateway.paypal-chained-payments.php');
+  function not_activated_error_notice() {
+    $class = "error";
+    $message = __('Please ensure both Events Manager and Events Manager Pro are enabled for the PayPal Chained Payments Gateway to work.', 'em-pro-mrcash');
+    echo '<div class="'.$class.'"> <p>'.$message.'</p></div>';
   }
 }
 
