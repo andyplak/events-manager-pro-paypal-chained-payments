@@ -122,7 +122,7 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 			if( $PayPalResult['Ack'] == 'Success') {
 				$this->payKey = $PayPalResult['PayKey'];
 			}else{
-				$EM_Booking->add_error('PayPal Error. Chained Payment Pay Key Generation failure: '.$PayPalResult['Errors'][0]['Message']);
+				$EM_Booking->add_error('PayPal Error. Chained Payment Pay Key Generation failure: '.$PayPalResult['Errors'][0]['Message'].' ('.$PayPalResult['Errors'][0]['ErrorID'].')');
 
 				// If user was created as part of booking save, then remove.
 				if( !is_user_logged_in() && get_option('dbem_bookings_anonymous') && !get_option('dbem_bookings_registration_disable') && !empty($EM_Booking->person_id) ){
@@ -256,6 +256,7 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 		// Differing values for Sandbox or Live
 		if( get_option('em_'. $this->gateway . "_status" ) == 'test') {
 			$PayPalConfig['DeveloperAccountEmail'] = get_option('em_'. $this->gateway . "_dev_email" );
+			$PayPalConfig['LogResults']    = true;
 			$PayPalConfig['Sandbox']       = true;
 			$PayPalConfig['ApplicationID'] = 'APP-80W284485P519543T';
 			$PayPalConfig['APIUsername']   = get_option('em_'. $this->gateway . "_api_sb_username");
