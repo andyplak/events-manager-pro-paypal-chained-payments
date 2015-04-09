@@ -332,7 +332,7 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 			'CurrencyCode' => get_option('dbem_bookings_currency', 'USD'),
 			'FeesPayer'    => $fees_payer,
 			'IPNNotificationURL' => '<![CDATA['.$this->get_payment_return_url().']]>',
-			'Memo' => 'Booking for '.$EM_Booking->get_event()->event_name,
+			'Memo' => '<![CDATA[Booking for '.$EM_Booking->get_event()->event_name.']]>',
 			//'Pin' => '', // The sener's personal id number, which was specified when the sender signed up for the preapproval
 			//'PreapprovalKey' => '',	// The key associated with a preapproval for this payment.  The preapproval is required if this is a preapproved payment.
 			'ReturnURL'    => '<![CDATA['.$return_url.']]>', 	// Required. The URL to which the sener's browser is redirected after approvaing a payment on paypal.com.  1024 char max.
