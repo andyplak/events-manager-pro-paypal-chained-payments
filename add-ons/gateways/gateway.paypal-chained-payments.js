@@ -7,7 +7,7 @@ $(document).bind('em_booking_gateway_add_paypal_chained', function(event, respon
 		$.each( response.paypal_vars, function(index,value){
 			ppForm.append('<input type="hidden" name="'+index+'" value="'+value+'" />');
 		});
-		ppForm.append('<input id="em-paypal-chained-submit" type="submit" style="display:hidden" />');
+		ppForm.append('<input id="em-paypal-chained-submit" type="submit" style="display:none" />');
 		ppForm.appendTo('body').trigger('submit');
 	}
 });
