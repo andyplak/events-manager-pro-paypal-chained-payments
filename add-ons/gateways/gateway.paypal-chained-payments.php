@@ -474,11 +474,11 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 				$user_id = $EM_Booking->person_id;
 
 				// process PayPal response
-				switch ($post['status']) {
+				switch ($primary_transaction['status']) {
 
-					case 'COMPLETED':
+					case 'Completed':
 						// case: successful payment
-						$this->record_transaction($EM_Booking, $amount, $currency, $timestamp, $primary_transaction['id'], $post['status'], '');
+						$this->record_transaction($EM_Booking, $amount, $currency, $timestamp, $primary_transaction['id'], $primary_transaction['status'], '');
 
 						if( $amount >= $EM_Booking->get_price() && (!get_option('em_'.$this->gateway.'_manual_approval', false) || !get_option('dbem_bookings_approval')) ){
 							$EM_Booking->approve(true, true); //approve and ignore spaces
@@ -489,16 +489,16 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 						do_action('em_payment_processed', $EM_Booking, $this);
 						break;
 
-					case 'ERROR':
+					case 'Error':
 						$note = 'The payment failed and all attempted transfers failed or all completed transfers were successfully reversed';
-						$this->record_transaction($EM_Booking, $amount, $currency, $timestamp, $primary_transaction['id'], $post['status'], $note);
+						$this->record_transaction($EM_Booking, $amount, $currency, $timestamp, $primary_transaction['id'], $primary_transaction['status'], $note);
 
 						$EM_Booking->cancel();
 						do_action('em_payment_denied', $EM_Booking, $this);
 						break;
 
-					case 'PROCESSING':
-					case 'PENDING':
+					case 'Processing':
+					case 'Pending':
 						// case: payment is pending
 						$pending_str = array(
 							'address' => 'Customer did not include a confirmed shipping address',
@@ -512,19 +512,19 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 							'paymentreview' => 'Paypal is currently reviewing the payment and will approve or reject within 24 hours',
 							'*' => ''
 							);
-						$reason = @$post['pending_reason'];
+						$reason = @$primary_transaction['pending_reason'];
 						$note = 'Last transaction is pending. Reason: ' . (isset($pending_str[$reason]) ? $pending_str[$reason] : $pending_str['*']);
 
-						$this->record_transaction($EM_Booking, $amount, $currency, $timestamp, $primary_transaction['id'], $post['status'], $note);
+						$this->record_transaction($EM_Booking, $amount, $currency, $timestamp, $primary_transaction['id'], $primary_transaction['status'], $note);
 
 						do_action('em_payment_pending', $EM_Booking, $this);
 						break;
 
-					/*
+
 					case 'Reversed':
 						// case: charge back
 						$note = 'Last transaction has been reversed. Reason: Payment has been reversed (charge back)';
-						$this->record_transaction($EM_Booking, $amount, $currency, $timestamp, $primary_transaction['id'], $post['status'], $note);
+						$this->record_transaction($EM_Booking, $amount, $currency, $timestamp, $primary_transaction['id'], $primary_transaction['status'], $note);
 
 						//We need to cancel their booking.
 						$EM_Booking->cancel();
@@ -534,7 +534,7 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 					case 'Refunded':
 						// case: refund
 						$note = 'Last transaction has been reversed. Reason: Payment has been refunded';
-						$this->record_transaction($EM_Booking, $amount, $currency, $timestamp, $primary_transaction['id'], $post['status'], $note);
+						$this->record_transaction($EM_Booking, $amount, $currency, $timestamp, $primary_transaction['id'], $primary_transaction['status'], $note);
 						if( $EM_Booking->get_price() >= $amount ){
 							$EM_Booking->cancel();
 						}else{
@@ -542,14 +542,14 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 						}
 						do_action('em_payment_refunded', $EM_Booking, $this);
 						break;
-					*/
+
 
 					default:
 						// case: various error cases
 						// https://developer.paypal.com/docs/classic/api/adaptive-payments/PaymentDetails_API_Operation/
 				}
 			}else{
-				if( is_numeric($booking_id) && $post['status'] == 'COMPELETED' ) {
+				if( is_numeric($booking_id) && $primary_transaction['status'] == 'Completed' ) {
 					$message = apply_filters('em_gateway_paypal_chained_bad_booking_email',"
 A Payment has been received by PayPal for a non-existent booking.
 
