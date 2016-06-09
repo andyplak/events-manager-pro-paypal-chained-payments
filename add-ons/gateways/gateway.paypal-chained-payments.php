@@ -338,9 +338,8 @@ class EM_Gateway_Paypal_Chained extends EM_Gateway {
 			'ReturnURL'    => '<![CDATA['.$return_url.']]>', 	// Required. The URL to which the sener's browser is redirected after approvaing a payment on paypal.com.  1024 char max.
 			//'ReverseAllParallelPaymentsOnError' => FALSE,	// Whether to reverse paralel payments if an error occurs with a payment.  Values are:  TRUE, FALSE
 			'SenderEmail'  => '',
-			'TrackingID'   => $EM_Booking->booking_id,
+			'TrackingID'   => get_option('em_'. $this->gateway . "_tracking_id_prefix", "").$EM_Booking->booking_id,
 		);
-
 
 		// Optional
 		/*
@@ -804,6 +803,13 @@ Events Manager
 			</tr>
 
 			<tr valign="top">
+				<th scope="row"><?php _e('Tracking ID Prefix', 'em-pro') ?></th>
+					<td><input type="text" name="paypal_chained_tracking_id_prefix" value="<?php esc_attr_e( get_option('em_'. $this->gateway . "_tracking_id_prefix" )); ?>" />
+					<br />
+					<em><?php _e('TrackingID passed to PayPal will be the Events Manager booking ID. If running multiple sites via the same PayPal account add a prefix here to prevent ID conflicts.', 'em-pro'); ?></em>
+				</td>
+			</tr>
+			<tr valign="top">
 				<th scope="row"><?php _e('Return URL', 'em-pro') ?></th>
 				<td>
 					<input type="text" name="paypal_chained_return" value="<?php esc_attr_e(get_option('em_'. $this->gateway . "_return" )); ?>" style='width: 40em;' /><br />
@@ -864,6 +870,7 @@ Events Manager
 			$this->gateway . "_booking_timeout" => $_REQUEST[ $this->gateway.'_booking_timeout' ],
 			$this->gateway . "_return" => $_REQUEST[ $this->gateway.'_return' ],
 			$this->gateway . "_cancel_return" => $_REQUEST[ $this->gateway.'_cancel_return' ],
+			$this->gateway . "_tracking_id_prefix" => $_REQUEST[ $this->gateway.'_tracking_id_prefix' ]
 		);
 		foreach($gateway_options as $key=>$option){
 			update_option('em_'.$key, stripslashes($option));
