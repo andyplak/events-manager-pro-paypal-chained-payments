@@ -11,6 +11,12 @@ PayPal Payment Gateway for Events Manager with Chained Payments
 
 Allows chained payments (funds split between different paypal accounts) to be made via PayPal for Events Manager bookings.
 
+See PayPal Adaptive Payments documentation for an overview of how this works:
+https://developer.paypal.com/docs/classic/adaptive-payments/integration-guide/APIntro/
+
+Please note you will need to apply for an Application ID before you can use chained payments in production:
+https://www.paypal.com/uk/selfhelp/article/how-do-i-get-an-adaptive-payments-api-application-id-ts1633
+
 Currently by default only the first receiver is set up based on the paypal config settings per the Gateway Admin. To make a chained payment you will need to hook into the em_gateway_paypal_chained_receivers filter to add additional receivers. If you do not do this, PayPal will throw an error.
 
 Example of how to use em_gateway_paypal_chained_receivers hook:
