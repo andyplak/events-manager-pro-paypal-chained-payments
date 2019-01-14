@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: Events Manager Pro - PayPal chained payments
-Version: 1.1.3
+Version: 1.1.4
 Plugin URI: http://www.andyplace.co.uk
 Description: PayPal payment gateway allowing chained payments
 Author: Andy Place
@@ -12,7 +12,7 @@ include_once( ABSPATH . 'wp-admin/includes/plugin.php' );
 
 class EM_Pro_PayPal_Chained {
 
-  function EM_Pro_PayPal_Chained() {
+  function __construct() {
     global $wpdb;
 
     // Some rewite pre-requesits
